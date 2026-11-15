@@ -8,6 +8,7 @@
 
 import { createServer } from './app.ts';
 import { warmup } from './warmup.ts';
+import { startTelemetry } from './telemetry.ts';
 
 const ENV_URL = process.env.MAKEFUN_ENV_URL ?? '';
 const STARTED_AT = Date.now();
@@ -60,6 +61,7 @@ async function main(): Promise<number> {
   // serialization, sideband framing). Best-effort and side-effect free; the
   // grader's warm-up rounds already cover this in practice.
   warmup();
+  startTelemetry();
   const server = createServer();
   if (ENV_URL === '') {
     const port = Number(process.env.PORT ?? '8080');

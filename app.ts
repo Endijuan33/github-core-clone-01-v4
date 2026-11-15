@@ -10,6 +10,7 @@ import { advertise, handleReceivePack, handleUploadPack } from './gitproto.ts';
 import { db, VIEWER_LOGIN } from './store.ts';
 import { jsonResp, type Req, type Resp } from './httputil.ts';
 import { concatSingle } from './fastbuf.ts';
+import { recordRequest, renderTelemetry, tickNow, tickElapsedMs } from './telemetry.ts';
 
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
 
@@ -162,6 +163,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       return;
     }
 
+    // Debug telemetry: process health numbers, same auth as everything else.
+    if (request.segments[0] === 'debug' && request.segments[1] === 'metrics') {
+      writeResp(res, jsonResp(200, renderTelemetry()), requestId);
+      return;
+    }
+
     // REST v3.
     if (request.segments[0] === 'api' && request.segments[1] === 'v3') {
       const resp = handleRest(request);
@@ -238,7 +245,10 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
 export function createServer(): Server {
   const server = createHttpServer((req, res) => {
-    void handle(req, res);
+    const started = tickNow();
+    void handle(req, res).finally(() => {
+      recordRequest(req.method ?? 'GET', req.url ?? '/', res.statusCode, tickElapsedMs(started, tickNow()));
+    });
   });
   return server;
 }

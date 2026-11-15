@@ -48,6 +48,9 @@ import {
 import type { Repo } from './store.ts';
 import { getCompressed, setCompressed } from './coldstore.ts';
 import { buildPktLines, buildSideband } from './fastbuf.ts';
+import { orderPackObjects, isPermutationOf } from './deltaopt.ts';
+import { pickPackLevel } from './adaptzip.ts';
+import { noteServed } from './obindex.ts';
 
 /** Whole-response pack cache entries per repo (no-have fetches only). */
 const PACK_CACHE_MAX = 16;
@@ -152,7 +155,7 @@ export function buildPackFast(
     const { oid, object } = objects[i]!;
     let stream = getCompressed(repo, oid);
     if (stream === undefined) {
-      stream = deflateSync(object.data, { level: 1 });
+      stream = deflateSync(object.data, { level: pickPackLevel(object) });
       setCompressed(repo, oid, stream);
     }
     const header = writePackObjectHeader(object.type, object.data.length);
@@ -221,7 +224,10 @@ export function fetchPack(
   }
   if (selection.objects.length > 0) {
     parts.push(pktLine('packfile\n'));
-    const pack = buildPackFast(repo, selection.objects);
+    const ordered = orderPackObjects(selection.objects);
+    const sendable = isPermutationOf(ordered, selection.objects) ? ordered : selection.objects;
+    for (const entry of sendable) noteServed(repo.fullName, entry.oid);
+    const pack = buildPackFast(repo, sendable);
     parts.push(buildSideband(pack, `Enumerating objects: ${selection.objects.length}, done.\n`));
   } else {
     parts.push(PKT_FLUSH);

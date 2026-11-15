@@ -19,6 +19,7 @@ import {
   type GitObject,
   type GitObjectType,
 } from './git.ts';
+import { noteObject } from './obindex.ts';
 
 export const VIEWER_LOGIN = 'adaiversen';
 export const VIEWER_ID = 1000;
@@ -136,6 +137,7 @@ export class Repo {
   putObject(type: GitObjectType, data: Buffer): string {
     const oid = hashObject(type, data);
     if (!this.objects.has(oid)) this.objects.set(oid, { type, data });
+    noteObject(this.fullName, oid, { type, data });
     return oid;
   }
 

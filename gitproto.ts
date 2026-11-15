@@ -20,6 +20,7 @@ import {
 import { FORGE_AGENT, type Repo } from './store.ts';
 import { advertCached, buildPackFast, fetchPack, lsRefsCached } from './packvault.ts';
 import { registerReceived } from './coldstore.ts';
+import { noteObject } from './obindex.ts';
 import { buildPktLines, buildSideband } from './fastbuf.ts';
 
 // ---------------------------------------------------------------------------------------------
@@ -520,6 +521,7 @@ export function handleReceivePack(
       const read = readPack(packBytes, { resolveBase: repo.lookup });
       for (const [oid, object] of read.objects) {
         if (!repo.objects.has(oid)) repo.objects.set(oid, object);
+        noteObject(repo.fullName, oid, object);
       }
       // Record the exact zlib slices the objects arrived as, so a later fetch
       // can emit the client's own compressed bytes instead of re-deflating.
